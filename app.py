@@ -143,7 +143,7 @@ if my_name and active_chat:
         with col1:
             txt_input = st.text_input("اكتب رسالتك هنا...", label_visibility="collapsed")
         with col2:
-            btn_send = st.form_submit_input("إرسال 🚀")
+            btn_send = st.form_submit_button("إرسال 🚀")
             
         if btn_send and txt_input:
             now_str = datetime.now(egypt_tz).strftime("%I:%M %p")
