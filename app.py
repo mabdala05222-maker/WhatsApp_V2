@@ -107,4 +107,49 @@ if my_name and active_chat:
         FROM messages 
         WHERE (sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?)
         ORDER BY id ASC
-    """, (my_name, active_chat, active_chat, my_
+    """, (my_name, active_chat, active_chat, my_name)).fetchall()
+    
+    # عرض الرسائل بتصميم الواتساب
+    for msg_id, sender, text, tm, is_read in chat_messages:
+        is_me = (sender == my_name)
+        box_class = "msg-box-sent" if is_me else "msg-box-recv"
+        
+        # علامات القراءة للرسائل المرسلة مني (صح واحدة أو صحين)
+        read_status = ""
+        if is_me:
+            read_status = " ✔️✔️" if is_read == 1 else " ✔️"
+            
+        st.markdown(f"""
+            <div class="msg-container">
+                <div class="{box_class}">
+                    <div style="font-size: 11px; color: #008069; font-weight: bold; margin-bottom: 2px;">{sender}</div>
+                    <div>{text}</div>
+                    <div class="time-text">{tm}{read_status}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # ميزة حذف رسائل معينة
+        if is_me or my_name == "عبد الرحمن":
+            if st.button(f"🗑️ حذف", key=f"del_{msg_id}"):
+                c.execute("DELETE FROM messages WHERE id = ?", (msg_id,))
+                conn.commit()
+                st.rerun()
+
+    # 5. صندوق إرسال الرسائل (ثابت أسفل الصفحة)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    with st.form(key="send_form", clear_on_submit=True):
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            txt_input = st.text_input("اكتب رسالتك هنا...", label_visibility="collapsed")
+        with col2:
+            btn_send = st.form_submit_input("إرسال 🚀")
+            
+        if btn_send and txt_input:
+            now_str = datetime.now(egypt_tz).strftime("%I:%M %p")
+            c.execute("""
+                INSERT INTO messages (sender, receiver, message, time, is_read) 
+                VALUES (?, ?, ?, ?, 0)
+            """, (my_name, active_chat, txt_input, now_str))
+            conn.commit()
+            st.rerun()
