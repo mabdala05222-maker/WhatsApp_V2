@@ -5,14 +5,14 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import os
 
-# 1. إعدادات الصفحة الكلية والمنطقة الزمنية
+# 1. إعدادات الصفحة والمنطقة الزمنية
 st.set_page_config(page_title="WhatsApp", page_icon="💬", layout="wide", initial_sidebar_state="expanded")
 egypt_tz = pytz.timezone('Africa/Cairo')
 
-# تحديث تلقائي صامت كل ثانيتين لجلب الرسائل الجديدة فوراً
+# تحديث تلقائي كل ثانيتين لجلب الرسائل
 st_autorefresh(interval=2000, key="whatsapp_global_refresh")
 
-# 2. هندسة الـ CSS لتحويل الواجهة بالكامل إلى WhatsApp Web
+# 2. تصميم الـ CSS لتحويل الواجهة بالكامل إلى WhatsApp Web
 st.markdown("""
     <style>
     [data-testid="stMainBlockContainer"] {
@@ -31,7 +31,7 @@ st.markdown("""
         background-color: #202c33; padding: 10px 20px; color: #e9edef !important;
         font-size: 16px; font-weight: bold; border-bottom: 1px solid #222c32;
         display: flex; align-items: center; margin-left: -4rem; margin-right: -4rem;
-        margin-top: -3.5rem; margin-bottom: 15px; z-index: 99;
+        margin-top: -3.5rem; margin-bottom: 15px;
     }
     
     .msg-container { display: flex; flex-direction: column; margin: 2px 0; width: 100%; }
@@ -55,14 +55,14 @@ st.markdown("""
     .stSidebar div.stButton > button:hover { background-color: #202c33 !important; }
     .login-card { background-color: #202c33; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: white; }
     
-    /* تصميم صندوق الإدخال الذكي أسفل الشاشة */
+    /* تثبيت وتجميل صندوق الكتابة الذكي في الأسفل */
     [data-testid="stChatInput"] { background-color: #202c33 !important; border-radius: 8px !important; }
     [data-testid="stChatInput"] textarea { color: #ffffff !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. الربط بقاعدة بيانات v4 النظيفة والجديدة تماماً لمنع الكاش المكسور
-conn = sqlite3.connect("whatsapp_v4.db", check_same_thread=False)
+# 3. داتابيز v5 جديدة تماماً لإنهاء كاش السيرفر
+conn = sqlite3.connect("whatsapp_v5.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
@@ -111,9 +111,7 @@ if st.session_state['logged_in_user'] is None:
                         st.rerun()
                     else:
                         st.error("❌ خطأ في الاسم أو كلمة المرور.")
-                else:
-                    st.warning("⚠️ برجاء ملء الحقول أولاً.")
-                    
+                        
         with tab2:
             reg_user = st.text_input("اختر اسم مستخدم فريد:", key="main_reg_u").strip()
             reg_pass = st.text_input("اختر كلمة مرور قوية:", type="password", key="main_reg_p")
@@ -122,13 +120,11 @@ if st.session_state['logged_in_user'] is None:
                     try:
                         c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (reg_user, reg_pass))
                         conn.commit()
-                        # الدخول التلقائي الفوري
+                        # دخول تلقائي فوري
                         st.session_state['logged_in_user'] = reg_user
                         st.rerun()
                     except sqlite3.IntegrityError:
-                        st.error("❌ اسم المستخدم هذا مسجل بالفعل!")
-                else:
-                    st.warning("⚠️ برجاء إدخال البيانات كاملة أولاً.")
+                        st.error("❌ اسم المستخدم مسجل بالفعل!")
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
@@ -163,7 +159,6 @@ else:
             st.rerun()
         
     st.sidebar.markdown("<hr style='border-color:#222c32; margin:10px 0;'>", unsafe_allow_html=True)
-    st.sidebar.markdown("<p style='color:#8696a0; font-size: 14px; font-weight:bold; padding-right:10px; margin-bottom:5px;'>الدردشات المتاحة</p>", unsafe_allow_html=True)
     
     all_users = c.execute("SELECT username FROM users WHERE username != ?", (my_name,)).fetchall()
     if all_users:
@@ -173,7 +168,7 @@ else:
                 st.session_state['active_chat'] = u_name
                 st.rerun()
     else:
-        st.sidebar.markdown("<p style='color:#8696a0; padding-right:10px; font-size:13px;'>لا توجد جهات اتصال أخرى.</p>", unsafe_allow_html=True)
+        st.sidebar.markdown("<p style='color:#8696a0; padding-right:10px;'>لا توجد جهات اتصال أخرى.</p>", unsafe_allow_html=True)
 
     # ب) نافذة الدردشة الرئيسية
     active_chat = st.session_state['active_chat']
@@ -221,47 +216,30 @@ else:
                         elif f_type == "audio":
                             st.audio(bytes_data, format="audio/wav")
                         elif f_type == "file":
-                            st.download_button(label="📁 تحميل الملف المرفق", data=bytes_data, file_name=os.path.basename(f_path), key=f"dl_{msg_id}")
+                            st.download_button(label="📁 تحميل الملف", data=bytes_data, file_name=os.path.basename(f_path), key=f"dl_{msg_id}")
                 
                 st.markdown(f'<div class="time-text">{tm}{read_status}</div></div></div>', unsafe_allow_html=True)
 
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         
-        # 3. أداة الإدخال الاحترافية الحقيقية من Streamlit لمنع الرسايل الفاضية
-        uploaded_file = st.file_uploader("📎 أرفق ميديا:", type=["png", "jpg", "jpeg", "pdf", "docx", "txt", "mp3", "wav", "m4a"], label_visibility="collapsed")
+        # صندوق إدخال الشات الذكي (مقاوم للـ Refresh على الموبايل)
         txt_input = st.chat_input("اكتب رسالة هنا...")
         
-        if txt_input or uploaded_file:
-            txt_stripped = txt_input.strip() if txt_input else ""
-            if txt_stripped or uploaded_file:
+        if txt_input:
+            txt_stripped = txt_input.strip()
+            if txt_stripped:
                 now_str = datetime.now(egypt_tz).strftime("%I:%M %p")
-                saved_path = None
-                file_type = None
-                
-                if uploaded_file is not None:
-                    saved_path = os.path.join("media", f"{int(datetime.now().timestamp())}_{uploaded_file.name}")
-                    with open(saved_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
-                    
-                    ext = uploaded_file.name.split(".")[-1].lower()
-                    if ext in ["png", "jpg", "jpeg"]:
-                        file_type = "image"
-                    elif ext in ["mp3", "wav", "m4a"]:
-                        file_type = "audio"
-                    else:
-                        file_type = "file"
                 
                 c.execute("""
                     INSERT INTO messages (sender, receiver, message, file_path, file_type, time, is_read) 
-                    VALUES (?, ?, ?, ?, ?, ?, 0)
-                """, (my_name, active_chat, txt_stripped, saved_path, file_type, now_str))
+                    VALUES (?, ?, ?, None, None, ?, 0)
+                """, (my_name, active_chat, txt_stripped, now_str))
                 conn.commit()
                 st.rerun()
     else:
         st.markdown("""
             <div style='text-align: center; margin-top: 15%; color: #667781;'>
                 <h1 style='font-size: 45px; font-weight: 500;'>💬 WhatsApp Web</h1>
-                <p style='font-size: 16px; margin-top: 12px;'>قم باختيار أحد الأصدقاء من القائمة الجانبية لبدء المحادثة فوراً.</p>
-                <p style='font-size: 13px; color: #8696a0; margin-top: 60px;'>🔒 جميع محادثاتك آمنة ومحفوظة بالكامل.</p>
+                <p style='font-size: 16px; margin-top: 12px;'>قم باختيار أحد الأصدقاء من القائمة الجانبية لبدء المحادثة.</p>
             </div>
         """, unsafe_allow_html=True)
