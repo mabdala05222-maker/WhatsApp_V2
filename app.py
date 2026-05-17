@@ -20,7 +20,7 @@ egypt_tz = pytz.timezone('Africa/Cairo')
 
 =============================
 
-💾 Database
+'💾' Database
 
 =============================
 
@@ -34,7 +34,7 @@ if not os.path.exists("media"): os.makedirs("media")
 
 =============================
 
-🧠 Session State
+'🧠' Session State
 
 =============================
 
@@ -44,7 +44,7 @@ if "chat" not in st.session_state: st.session_state.chat = None
 
 =============================
 
-🔑 Login / Register
+'🔑' Login / Register
 
 =============================
 
@@ -78,7 +78,7 @@ with tab2:
 
 =============================
 
-💬 Chat System
+'💬' Chat System
 
 =============================
 
