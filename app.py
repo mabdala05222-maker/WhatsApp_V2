@@ -5,29 +5,27 @@ import pytz
 import hashlib 
 import os
 
-=============================
 
 '🔐' Security - Hash Password
 
-=============================
 
 def hash_password(password): return hashlib.sha256(password.encode()).hexdigest()
 
-=============================
+
 
 '⚙️' App Config
 
-=============================
+
 
 st.set_page_config(page_title="WhatsApp Pro", page_icon="💬", layout="wide")
 
 egypt_tz = pytz.timezone('Africa/Cairo')
 
-=============================
+
 
 '💾' Database
 
-=============================
+
 
 conn = sqlite3.connect("whatsapp_pro.db", check_same_thread=False) c = conn.cursor()
 
@@ -37,21 +35,19 @@ c.execute(""" CREATE TABLE IF NOT EXISTS messages ( id INTEGER PRIMARY KEY AUTOI
 
 if not os.path.exists("media"): os.makedirs("media")
 
-=============================
-
 '🧠' Session State
 
-=============================
+
 
 if "user" not in st.session_state: st.session_state.user = None
 
 if "chat" not in st.session_state: st.session_state.chat = None
 
-=============================
+
 
 '🔑' Login / Register
 
-=============================
+
 
 if st.session_state.user is None: st.title("💬 WhatsApp Pro")
 
@@ -81,11 +77,11 @@ with tab2:
         except:
             st.error("Username exists")
 
-=============================
+
 
 '💬' Chat System
 
-=============================
+
 
 else: me = st.session_state.user
 
