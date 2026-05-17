@@ -4,7 +4,6 @@ from datetime import datetime
 import pytz
 import hashlib
 import os
-# استيراد أداة التحديث التلقائي
 from streamlit_autorefresh import st_autorefresh
 
 # 🔐 تشفير الباسورد
@@ -15,14 +14,16 @@ def hash_password(password):
 st.set_page_config(page_title="WhatsApp Pro", page_icon="💬", layout="wide")
 egypt_tz = pytz.timezone('Africa/Cairo')
 
-# 🔄 تحديث تلقائي صامت للشاشة كل ثانيتين (2000 مللي ثانية) لجلب الرسائل الجديدة فوراً
+# 🔄 تحديث تلقائي صامت كل ثانيتين
 st_autorefresh(interval=2000, key="whatsapp_refresh_counter")
 
-# 💾 قاعدة البيانات
-conn = sqlite3.connect("whatsapp.db", check_same_thread=False)
+# 💾 قاعدة بيانات جديدة v7 تدعم نظام علامات الصح
+conn = sqlite3.connect("whatsapp_v7.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
+
+# إضافة عمود is_read (0 = لم تقرأ، 1 = قرأت)
 c.execute("""
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,16 +32,15 @@ CREATE TABLE IF NOT EXISTS messages (
     message TEXT,
     file_path TEXT,
     file_type TEXT,
-    time TEXT
+    time TEXT,
+    is_read INTEGER DEFAULT 0
 )
 """)
 conn.commit()
 
-# إنشاء فولدر الملفات
 if not os.path.exists("media"):
     os.makedirs("media")
 
-# 🧠 session
 if "user" not in st.session_state:
     st.session_state.user = None
 
@@ -84,7 +84,6 @@ else:
         st.session_state.chat = None
         st.rerun()
 
-    # المستخدمين
     users = c.execute("SELECT username FROM users WHERE username!=?", (me,)).fetchall()
     for u in users:
         if st.sidebar.button(u[0], key=f"user_{u[0]}"):
@@ -95,17 +94,26 @@ else:
     if chat:
         st.header(f"💬 Chat with {chat}")
 
-        # الرسائل
+        # 🔥 بمجرد فتح الشات: تحديث كل الرسائل القادمة من الطرف الآخر لتصبح "مقروءة"
+        c.execute("UPDATE messages SET is_read = 1 WHERE sender = ? AND receiver = ?", (chat, me))
+        conn.commit()
+
+        # جلب الرسائل مع حالة القراءة
         msgs = c.execute("""
-        SELECT sender, message, file_path, file_type, time
+        SELECT sender, message, file_path, file_type, time, is_read
         FROM messages
         WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)
         ORDER BY id ASC
         """, (me, chat, chat, me)).fetchall()
 
-        for sender, text, f_path, f_type, t in msgs:
+        for sender, text, f_path, f_type, t, is_read in msgs:
+            
+            # تحديد شكل ولون علامة الصح للرسائل التي أرسلتها أنا فقط
             if sender == me:
-                st.markdown(f"🟢 **You:** {text} ({t})")
+                # لون أزرق (#53bdeb) لو مقروءة، رمادي (#8696a0) لو وصلت ولم تقرأ بعد
+                ticks_color = "#53bdeb" if is_read == 1 else "#8696a0"
+                ticks_html = f" <span style='color:{ticks_color}; font-size:14px; font-weight:bold;'>✔✔</span>"
+                st.markdown(f"🟢 **You:** {text} ({t}){ticks_html}", unsafe_allow_html=True)
             else:
                 st.markdown(f"⚪ **{sender}:** {text} ({t})")
 
@@ -118,10 +126,7 @@ else:
 
         st.divider()
 
-        # رفع الملفات اختياري
         file = st.file_uploader("Send file", label_visibility="collapsed")
-        
-        # صندوق الإدخال مع إضافة مفتاح (key) لإجباره على التصفير بعد الإرسال
         msg = st.chat_input("اكتب رسالة هنا...", key="chat_message_input")
 
         if msg or file:
@@ -135,9 +140,10 @@ else:
                     f.write(file.getbuffer())
                 file_type = file.type
 
+            # إدخال الرسالة وتعيين الحالة الافتراضية كـ غير مقروءة (0)
             c.execute("""
-            INSERT INTO messages (sender, receiver, message, file_path, file_type, time)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO messages (sender, receiver, message, file_path, file_type, time, is_read)
+            VALUES (?, ?, ?, ?, ?, ?, 0)
             """, (me, chat, msg if msg else "", file_path, file_type, now))
             
             conn.commit()
