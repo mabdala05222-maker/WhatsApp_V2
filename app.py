@@ -12,7 +12,7 @@ egypt_tz = pytz.timezone('Africa/Cairo')
 # تحديث تلقائي كل ثانيتين لجلب الرسائل
 st_autorefresh(interval=2000, key="whatsapp_global_refresh")
 
-# 2. تصميم الـ CSS لتحويل الواجهة بالكامل إلى WhatsApp Web
+# 2. تصميم الـ CSS لتحويل الواجهة بالكامل إلى WhatsApp Web ومنع المربعات الزائدة
 st.markdown("""
     <style>
     [data-testid="stMainBlockContainer"] {
@@ -55,14 +55,14 @@ st.markdown("""
     .stSidebar div.stButton > button:hover { background-color: #202c33 !important; }
     .login-card { background-color: #202c33; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: white; }
     
-    /* تثبيت وتجميل صندوق الكتابة الذكي في الأسفل */
+    /* شريط الكتابة السفلي النحيف المتطابق مع الواتساب */
     [data-testid="stChatInput"] { background-color: #202c33 !important; border-radius: 8px !important; }
     [data-testid="stChatInput"] textarea { color: #ffffff !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. داتابيز v5 جديدة تماماً لإنهاء كاش السيرفر
-conn = sqlite3.connect("whatsapp_v5.db", check_same_thread=False)
+# 3. إعداد داتابيز v6 جديدة لمنع أي كاش ميت على السيرفر
+conn = sqlite3.connect("whatsapp_v6.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
@@ -89,7 +89,7 @@ if 'active_chat' not in st.session_state:
     st.session_state['active_chat'] = None
 
 # ==========================================
-# الشاشة الأولى: تسجيل الدخول أو مستخدم جديد
+# الشاشة الأولى: الدخول والتسجيل
 # ==========================================
 if st.session_state['logged_in_user'] is None:
     st.markdown("<div style='background-color: #00a884; height: 220px; position: absolute; top:0; left:0; right:0; z-index:-1;'></div>", unsafe_allow_html=True)
@@ -120,7 +120,6 @@ if st.session_state['logged_in_user'] is None:
                     try:
                         c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (reg_user, reg_pass))
                         conn.commit()
-                        # دخول تلقائي فوري
                         st.session_state['logged_in_user'] = reg_user
                         st.rerun()
                     except sqlite3.IntegrityError:
@@ -128,12 +127,11 @@ if st.session_state['logged_in_user'] is None:
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
-# الشاشة الثانية: واجهة المحادثات والشات
+# الشاشة الثانية: واجهة الشات الحقيقية
 # ==========================================
 else:
     my_name = st.session_state['logged_in_user'].strip()
     
-    # أ) السايدبار الجانبي
     st.sidebar.markdown(f"""
         <div style='display: flex; align-items: center; padding: 5px; margin-bottom: 5px;'>
             <div style='background-color: #00a884; width: 42px; height: 42px; border-radius: 50%; text-align: center; line-height: 42px; font-weight: bold; color: white; font-size: 18px;'>
@@ -167,10 +165,7 @@ else:
             if st.sidebar.button(f"🟢 {u_name}", key=f"user_btn_{u_name}"):
                 st.session_state['active_chat'] = u_name
                 st.rerun()
-    else:
-        st.sidebar.markdown("<p style='color:#8696a0; padding-right:10px;'>لا توجد جهات اتصال أخرى.</p>", unsafe_allow_html=True)
 
-    # ب) نافذة الدردشة الرئيسية
     active_chat = st.session_state['active_chat']
     if active_chat:
         active_chat = active_chat.strip()
@@ -207,29 +202,17 @@ else:
                 st.markdown(f'<div class="{box_class}">', unsafe_allow_html=True)
                 if text and text.strip() != "":
                     st.write(text)
-                
-                if f_path and os.path.exists(f_path):
-                    with open(f_path, "rb") as file_data:
-                        bytes_data = file_data.read()
-                        if f_type == "image":
-                            st.image(bytes_data, width=250)
-                        elif f_type == "audio":
-                            st.audio(bytes_data, format="audio/wav")
-                        elif f_type == "file":
-                            st.download_button(label="📁 تحميل الملف", data=bytes_data, file_name=os.path.basename(f_path), key=f"dl_{msg_id}")
-                
                 st.markdown(f'<div class="time-text">{tm}{read_status}</div></div></div>', unsafe_allow_html=True)
 
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         
-        # صندوق إدخال الشات الذكي (مقاوم للـ Refresh على الموبايل)
+        # صندوق إدخال الشات الحديث والنحيف فقط (تم حذف المربع الأبيض نهائياً)
         txt_input = st.chat_input("اكتب رسالة هنا...")
         
         if txt_input:
             txt_stripped = txt_input.strip()
             if txt_stripped:
                 now_str = datetime.now(egypt_tz).strftime("%I:%M %p")
-                
                 c.execute("""
                     INSERT INTO messages (sender, receiver, message, file_path, file_type, time, is_read) 
                     VALUES (?, ?, ?, None, None, ?, 0)
